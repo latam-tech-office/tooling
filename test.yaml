@@ -1,0 +1,22 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Installing
+  hosts: localhost
+  connection: local
+  vars:
+     openshift_master: https://openshift.example.com:8443
+     openshift_domain: example.com
+     openshift_domain_cloudapps: cloudapps.{{ openshift_domain }}
+     username: demo
+     password: r3dh4t1!
+     tooling_namespace: tooling
+     gogs_url: http://gogs.{{ openshift_domain_cloudapps }} 
+  tasks: 
+     - name: Add a WebHook to Jenkins
+       uri: method=POST body_format=json url="{{ gogs_url }}/api/v1/repos/{{ username }}/forum/hooks"
+            user={{ username }} password={{ password }} force_basic_auth=yes
+            body="{\"type\"{{ ":" }}\"gogs\",\"config\"{{ ":" }}{\"url\"{{ ":" }}\"http://admin:{{ password }}@jenkins.{{ openshift_domain_cloudapps }}/job/forum-pipeline/build?delay=0sec\",\"content_type\"{{ ":" }}\"json\"},\"events\"{{ ":" }}[\"push\"],\"active\"{{ ":" }}true}"
+       register: json_result
+       failed_when: json_result.status != 201
+       tags: install
+
