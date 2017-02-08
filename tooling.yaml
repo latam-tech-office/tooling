@@ -75,7 +75,9 @@
             body="{\"clone_addr\"{{ ":" }}\"https{{ ":" }}//github.com/pstlatam/rhforum2016brms.git\",\"uid\"{{ ":" }} 1,\"repo_name\"{{ ":" }} \"brms\"}"
        register: json_result
        failed_when: json_result.status != 201
-       tags: install
+       tags: 
+          - install
+          - installbrms
 
      - name: Import into Forum Content
        uri: method=POST body_format=json url={{ gogs_url }}/api/v1/repos/migrate
@@ -83,12 +85,16 @@
             body="{\"clone_addr\"{{ ":" }}\"https{{ ":" }}//github.com/pstlatam/rhforum2016.git\",\"uid\"{{ ":" }} 1,\"repo_name\"{{ ":" }} \"forum\"}"
        register: json_result
        failed_when: json_result.status != 201
-       tags: install
+       tags: 
+          - install
+          - installforum
 
      - name: Add a WebHook to Jenkins
-       uri: method=POST body_format=json url="{{ gogs_url }}/api/v1/repos/{{ username }}/forum/hooks"
+       uri: method=POST body_format=json url="{{ gogs_url }}/api/v1/repos/{{ username }}/brms/hooks"
             user={{ username }} password={{ password }} force_basic_auth=yes
-            body="{\"type\"{{ ":" }}\"gogs\",\"config\"{{ ":" }}{\"url\"{{ ":" }}\"http://admin:{{ password }}@jenkins.{{ openshift_domain_cloudapps }}/job/forum-pipeline/build?delay=0sec\",\"content_type\"{{ ":" }}\"json\"},\"events\"{{ ":" }}[\"push\"],\"active\"{{ ":" }}true}"
+            body="{\"type\"{{ ":" }}\"gogs\",\"config\"{{ ":" }}{\"url\"{{ ":" }}\"http://admin:{{ password }}@jenkins:80/job/forum-pipeline/build?delay=0sec\",\"content_type\"{{ ":" }}\"json\"},\"events\"{{ ":" }}[\"push\"],\"active\"{{ ":" }}true}"
        register: json_result
        failed_when: json_result.status != 201
-       tags: install
+       tags: 
+          - install
+          - installwebhook
