@@ -4,7 +4,7 @@
   hosts: localhost
   connection: local
   vars:
-     openshift_master: https://openshift.example.com:8443
+     openshift_master: https://master.example.com:8443
      openshift_domain: example.com
      openshift_domain_cloudapps: cloudapps.{{ openshift_domain }}
      username: demo
@@ -17,7 +17,7 @@
        ignore_errors: True
        tags: create
 
-     - name: Creating the Project{{ ':'}} {{ tooling_namespace }} 
+     - name: Creating the Project{{ ':' }} {{ tooling_namespace }} 
        command: oadm new-project {{ tooling_namespace }} --display-name="Tooling{{ ":" }} LATAM Red Hat Forum 2016" --admin={{ username }} 
        register: create_namespace
        until: create_namespace.rc == 0
@@ -33,8 +33,33 @@
        command: oc new-app --file=/tmp/tooling-template.yaml --param=JENKINS_PASSWORD={{ password }} --namespace {{ tooling_namespace }} 
        tags: create
 
-     - name: Wait for Gogs to be ready{{ ":" }} {{ gogs_url }}
-       uri: url="{{ gogs_url }}" status_code=200 
+     - name: Fetch Gogs's IP Address
+       command: oc get service/gogs --output jsonpath='{..spec.clusterIP}' --namespace {{ tooling_namespace }}
+       register: gogs_ip
+       tags: 
+          - create
+          - gogs
+
+     - name: Fetch Gogs's Port Address
+       command: oc get service/gogs --output jsonpath='{..spec.ports[?(@.name=="web")].port}' --namespace {{ tooling_namespace }}
+       register: gogs_port      
+       tags: 
+          - create
+          - gogs
+
+     - name: Define what gogs's IP and port show able to test it
+       set_fact: gogs_address="http{{ ':' }}//{{ gogs_ip.stdout }}{{ ':' }}{{ gogs_port.stdout }}"
+       tags: 
+          - create
+          - gogs
+
+     - debug: var=gogs_address
+       tags: 
+          - create
+          - gogs
+
+     - name: Wait for Gogs to be ready{{ ":" }} {{ gogs_address }}
+       uri: url="{{ gogs_address }}" status_code=200 
        register: gogs_wait
        until: gogs_wait.status == 200
        retries: 60
@@ -67,14 +92,14 @@
        tags: install
      
      - name: Installing Gogs for the very first time
-       uri: method=POST HEADER_Content-type="application/x-www-form-urlencoded" url="{{ gogs_url }}/install"
+       uri: method=POST HEADER_Content-type="application/x-www-form-urlencoded" url="{{ gogs_address }}/install"
             body="db_type={{ "PostgreSQL" | urlencode }}&db_host={{ gogs_database_ip.stdout | urlencode }}%3A{{ gogs_database_port.stdout }}&db_user={{ gogs_database_username.stdout }}&db_passwd={{ gogs_database_password.stdout }}&db_name={{ gogs_database_name.stdout | urlencode }}&ssl_mode=disable&db_path=data%2Fgogs.db&app_name={{ "Gogs Go Git Service" | urlencode }}&repo_root_path={{ "/home/gogs/gogs-repositories" | urlencode }}&run_user=gogs&domain=localhost&ssh_port=22&http_port=3000&app_url={{ gogs_url | urlencode }}&log_root_path=%2Fopt%2Fgogs%2Flog&admin_name={{ username | urlencode }}&admin_passwd={{ password | urlencode }}&admin_confirm_passwd={{ password | urlencode }}&admin_email={{ "admin@gogs.com" | urlencode }}"
        register: result_install
        failed_when: result_install.status != 302
        tags: install
 
      - name: Import into BRMS Content
-       uri: method=POST body_format=json url={{ gogs_url }}/api/v1/repos/migrate
+       uri: method=POST body_format=json url={{ gogs_address }}/api/v1/repos/migrate
             user={{ username }} password={{ password }} force_basic_auth=yes
             body="{\"clone_addr\"{{ ":" }}\"https{{ ":" }}//github.com/pstlatam/rhforum2016brms.git\",\"uid\"{{ ":" }} 1,\"repo_name\"{{ ":" }} \"brms\"}"
        register: json_result
@@ -86,7 +111,7 @@
           - installbrms
 
      - name: Import into Forum Content
-       uri: method=POST body_format=json url={{ gogs_url }}/api/v1/repos/migrate
+       uri: method=POST body_format=json url={{ gogs_address }}/api/v1/repos/migrate
             user={{ username }} password={{ password }} force_basic_auth=yes
             body="{\"clone_addr\"{{ ":" }}\"https{{ ":" }}//github.com/pstlatam/rhforum2016.git\",\"uid\"{{ ":" }} 1,\"repo_name\"{{ ":" }} \"forum\"}"
        register: json_result
@@ -98,7 +123,7 @@
           - installforum
 
      - name: Add a WebHook to Jenkins
-       uri: method=POST body_format=json url="{{ gogs_url }}/api/v1/repos/{{ username }}/brms/hooks"
+       uri: method=POST body_format=json url="{{ gogs_address }}/api/v1/repos/{{ username }}/brms/hooks"
             user={{ username }} password={{ password }} force_basic_auth=yes
             body="{\"type\"{{ ":" }}\"gogs\",\"config\"{{ ":" }}{\"url\"{{ ":" }}\"http://admin:{{ password }}@jenkins:80/job/forum-pipeline/build?delay=0sec\",\"content_type\"{{ ":" }}\"json\"},\"events\"{{ ":" }}[\"push\"],\"active\"{{ ":" }}true}"
        register: json_result
