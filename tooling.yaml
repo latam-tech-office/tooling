@@ -1,6 +1,6 @@
 #!/usr/bin/env ansible-playbook
 ---
-- name: Installing Tooling for LATAM Red Hat Forum 2016
+- name: Tooling{{ ":" }} LATAM Red Hat Forum 2016
   hosts: localhost
   connection: local
   vars:
@@ -19,6 +19,10 @@
 
      - name: Creating the Project{{ ':'}} {{ tooling_namespace }} 
        command: oadm new-project {{ tooling_namespace }} --display-name="Tooling{{ ":" }} LATAM Red Hat Forum 2016" --admin={{ username }} 
+       register: create_namespace
+       until: create_namespace.rc == 0
+       retries: 10
+       delay: 10
        tags: create
 
      - name: Generate a OpenShift's Template based on the variables defined in this playbook
@@ -74,7 +78,9 @@
             user={{ username }} password={{ password }} force_basic_auth=yes
             body="{\"clone_addr\"{{ ":" }}\"https{{ ":" }}//github.com/pstlatam/rhforum2016brms.git\",\"uid\"{{ ":" }} 1,\"repo_name\"{{ ":" }} \"brms\"}"
        register: json_result
-       failed_when: json_result.status != 201
+       failed_when: 
+              - json_result.status != 201
+              - json_result.status != 504
        tags: 
           - install
           - installbrms
@@ -84,7 +90,9 @@
             user={{ username }} password={{ password }} force_basic_auth=yes
             body="{\"clone_addr\"{{ ":" }}\"https{{ ":" }}//github.com/pstlatam/rhforum2016.git\",\"uid\"{{ ":" }} 1,\"repo_name\"{{ ":" }} \"forum\"}"
        register: json_result
-       failed_when: json_result.status != 201
+       failed_when: 
+              - json_result.status != 201
+              - json_result.status != 504
        tags: 
           - install
           - installforum
