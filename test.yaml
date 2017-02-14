@@ -10,13 +10,20 @@
      username: demo
      password: r3dh4t1!
      tooling_namespace: tooling
-     gogs_url: http://gogs.{{ openshift_domain_cloudapps }} 
-  tasks: 
-     - name: Add a WebHook to Jenkins
-       uri: method=POST body_format=json url="{{ gogs_url }}/api/v1/repos/{{ username }}/forum/hooks"
-            user={{ username }} password={{ password }} force_basic_auth=yes
-            body="{\"type\"{{ ":" }}\"gogs\",\"config\"{{ ":" }}{\"url\"{{ ":" }}\"http://admin:{{ password }}@jenkins.{{ openshift_domain_cloudapps }}/job/forum-pipeline/build?delay=0sec\",\"content_type\"{{ ":" }}\"json\"},\"events\"{{ ":" }}[\"push\"],\"active\"{{ ":" }}true}"
-       register: json_result
-       failed_when: json_result.status != 201
-       tags: install
+     gogs_url: http://gogs.{{ tooling_namespace }}.svc.cluster.local:3000
+  tasks:
+     - name: Fetch Nexus Port
+       command: oc get service/nexus --output jsonpath='{..spec.ports[?(@.name=="web")].port}' --namespace {{ tooling_namespace }} 
+       register: nexus_port
+       failed_when: nexus_port.rc != 0
+
+     - name: Define the address to reach Nexus
+       set_fact: nexus_url="http{{ ':' }}//admin:admin123@nexus.{{ tooling_namespace }}.svc.cluster.local{{ ':' }}{{ nexus_port.stdout }}"
+ 
+     - name: Post into Nexus
+       uri: method=POST HEADER_Content-type="application/xml" url="{{ nexus_url }}/service/local/repositories"
+            body="<repository><data><id>RedHatTP</id><name>RedHatTP</name><provider>maven2</provider><providerRole>org.sonatype.nexus.proxy.repository.Repository</providerRole><format>maven2</format><repoType>proxy</repoType><exposed>true</exposed><writePolicy>READ_ONLY</writePolicy><browseable>true</browseable><indexable>true</indexable><notFoundCacheTTL>1440</notFoundCacheTTL><repoPolicy>RELEASE</repoPolicy><checksumPolicy>WARN</checksumPolicy><downloadRemoteIndexes>true</downloadRemoteIndexes><remoteStorage><remoteStorageUrl>http{{ ':' }}//maven.repository.redhat.com/techpreview/all</remoteStorageUrl></remoteStorage><fileTypeValidation>true</fileTypeValidation><artifactMaxAge>-1</artifactMaxAge><metadataMaxAge>1440</metadataMaxAge><itemMaxAge>1440</itemMaxAge><autoBlockActive>true</autoBlockActive></data></repository>"
+       register: nexus_response
+
+     - debug: var=nexus_response
 
