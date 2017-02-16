@@ -25,10 +25,6 @@
        delay: 10
        tags: create
 
-     - name: Allow this Namespace{{ ':' }} {{ tooling_namespace }} to 'edit' pods in Namespace{{ ':' }} {{ microservices_namespaces }} 
-       command: oadm policy add-role-to-user edit system:serviceaccount:{{ tooling_namespace }}:default --namespace {{ microservices_namespace }} 
-       tags: create
-
      - name: Creating all the necessary applications based on a OpenShift's template
        command: oc new-app --file=template/tooling-template.yaml --param=JENKINS_PASSWORD={{ password }} --param=GOGS_USERNAME={{ username }} --param=GOGS_PASSWORD={{ password }} --param=CLOUDAPPS_DOMAIN={{ openshift_domain_cloudapps }} --param=CLOUDAPPS_NAMESPACE={{ tooling_namespace }} --param=GOGS_URL={{ gogs_url }} --param=MICROSERVICES_NAMESPACE={{ microservices_namespace }} --namespace {{ tooling_namespace }}
        tags: create
