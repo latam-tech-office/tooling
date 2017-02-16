@@ -10,6 +10,7 @@
      password: r3dh4t1!
      tooling_namespace: tooling
      gogs_url: http://gogs.{{ tooling_namespace }}.svc.cluster.local:3000
+     microservices_namespace: microservices
   tasks: 
      - name: Delete any existing namespaces 
        command: oc delete project {{ tooling_namespace }} 
@@ -24,8 +25,12 @@
        delay: 10
        tags: create
 
+     - name: Allow this Namespace{{ ':' }} {{ tooling_namespace }} to 'edit' pods in Namespace{{ ':' }} {{ microservices_namespaces }} 
+       command: oadm policy add-role-to-user edit system:serviceaccount:{{ tooling_namespace }}:default --namespace {{ microservices_namespace }} 
+       tags: create
+
      - name: Creating all the necessary applications based on a OpenShift's template
-       command: oc new-app --file=template/tooling-template.yaml --param=JENKINS_PASSWORD={{ password }} --param=GOGS_USERNAME={{ username }} --param=GOGS_PASSWORD={{ password }} --param=CLOUDAPPS_DOMAIN={{ openshift_domain_cloudapps }} --param=CLOUDAPPS_NAMESPACE={{ tooling_namespace }} --param=GOGS_URL={{ gogs_url }} --namespace {{ tooling_namespace }}
+       command: oc new-app --file=template/tooling-template.yaml --param=JENKINS_PASSWORD={{ password }} --param=GOGS_USERNAME={{ username }} --param=GOGS_PASSWORD={{ password }} --param=CLOUDAPPS_DOMAIN={{ openshift_domain_cloudapps }} --param=CLOUDAPPS_NAMESPACE={{ tooling_namespace }} --param=GOGS_URL={{ gogs_url }} --param=MICROSERVICES_NAMESPACE={{ microservices_namespace }} --namespace {{ tooling_namespace }}
        tags: create
 
      - name: Wait for Gogs to be ready{{ ":" }} {{ gogs_url }}
