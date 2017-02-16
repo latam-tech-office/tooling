@@ -18,6 +18,11 @@ parameters:
   description: "Gogs's Internal URL to be used into other applications, such as Jenkins or Nexus"
   value: http://gogs.${CLOUDAPPS_NAMESPACE}.svc.cluster.local:3000
   required: true
+- name: "MICROSERVICES_NAMESPACE"
+  displayName: MicroServices Namespace
+  description: "The namespace where a set of MicroServices (Cars, Flight, BRMS, Hotel and Fuse)"
+  value: microservices
+  required: true
 - name: "CLOUDAPPS_NAMESPACE"
   displayName: CloudApps Namespace
   description: "The namespace where Gogs, Nexus and Jenkins will reside"
@@ -95,14 +100,13 @@ objects:
           node('maven') {
            stage 'Build'
                 git url: '${GOGS_URL}/${GOGS_USERNAME}/brms.git'
-                def mvnHome = tool 'M3'
-                def javaHome = tool 'jdk8'
  
            stage 'Test'
-                sh "${mvnHome}/bin/mvn clean test -f discountRules/pom.xml"
+                sh "mvn clean test -f discountRules/pom.xml"
+
            stage 'Deploy'
                 def ocCmd = "/usr/bin/oc --token=`cat /var/run/secrets/kubernetes.io/serviceaccount/token` --server=https://openshift.default.svc.cluster.local --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-                sh "${ocCmd} start-build bc/brms -n test5 --follow"
+                sh "${ocCmd} start-build bc/brms -n ${MICROSERVICES_NAMESPACE} --follow"
           }
       type: JenkinsPipeline
       type: Generic
