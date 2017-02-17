@@ -102,7 +102,7 @@ objects:
                 git url: '${GOGS_URL}/${GOGS_USERNAME}/brms.git'
  
            stage 'Test'
-                sh "mvn clean test -f discountRules/pom.xml -s discountRules/settings.xml"
+                sh "mvn clean test -f discountRules/pom.xml"
 
            stage 'Deploy'
                 def ocCmd = "/usr/bin/oc --token=`cat /var/run/secrets/kubernetes.io/serviceaccount/token` --server=https://openshift.default.svc.cluster.local --certificate-authority=/run/secrets/kubernetes.io/serviceaccount/ca.crt"
